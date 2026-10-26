@@ -2,59 +2,50 @@
 // API do Diario de Treinos
 // Back-End I - CEEP Pedro Boaretto Neto
 // ============================================================
-
+const { DatabaseSync } = require('node:sqlite');
 const express = require('express');
-const servidor = express();
 
+const servidor = express();
 const PORTA = 3000;
 
-// Faz o Express entender JSON
 servidor.use(express.json());
 
 // ============================================================
-// DADOS
+// BANCO DE DADOS
 // ============================================================
 
-let listaTreinos = [
-    {
-        id: 1,
-        nome: "Peito e Tríceps",
-        duracao: 60
-    },
-    {
-        id: 2,
-        nome: "Costas e Bíceps",
-        duracao: 50
-    },
-    {
-        id: 3,
-        nome: "Pernas",
-        duracao: 70
-    }
-];
+const db = new DatabaseSync('treinos.db');
 
-let ultimoId = 3;
+db.exec(`
+    CREATE TABLE IF NOT EXISTS treinos (
+        id INTEGER PRIMARY KEY AUTOINCREMENT,
+        nome TEXT NOT NULL,
+        duracao INTEGER NOT NULL
+    )
+`);
 
 // ============================================================
 // VALIDACAO
 // ============================================================
 
 function verificarTreino(dados) {
-
     if (
+        !dados ||
         !dados.nome ||
-        typeof dados.nome !== "string" ||
+        typeof dados.nome !== 'string' ||
         dados.nome.trim().length === 0
     ) {
-        return "O campo nome é obrigatório e deve ser um texto.";
+        return 'O campo nome é obrigatório e deve ser um texto.';
     }
 
     if (
         dados.duracao === undefined ||
-        typeof dados.duracao !== "number" ||
-        dados.duracao <= 0
+        typeof dados.duracao !== 'number' ||
+        !Number.isFinite(dados.duracao) ||
+        dados.duracao <= 0 ||
+        !Number.isInteger(dados.duracao)
     ) {
-        return "O campo duração é obrigatório e deve ser um número maior que zero.";
+        return 'O campo duração é obrigatório e deve ser um número inteiro maior que zero.';
     }
 
     return null;
@@ -65,10 +56,12 @@ function verificarTreino(dados) {
 // Lista todos os treinos
 // ============================================================
 
-servidor.get("/treinos", (req, res) => {
+servidor.get('/treinos', (req, res) => {
+    const treinos = db.prepare(
+        'SELECT * FROM treinos'
+    ).all();
 
-    res.status(200).json(listaTreinos);
-
+    res.status(200).json(treinos);
 });
 
 // ============================================================
@@ -76,22 +69,26 @@ servidor.get("/treinos", (req, res) => {
 // Busca um treino pelo ID
 // ============================================================
 
-servidor.get("/treinos/:id", (req, res) => {
+servidor.get('/treinos/:id', (req, res) => {
+    const id = Number(req.params.id);
 
-    const idProcurado = Number(req.params.id);
-
-    const treinoEncontrado = listaTreinos.find(
-        item => item.id === idProcurado
-    );
-
-    if (treinoEncontrado === undefined) {
-        return res.status(404).json({
-            erro: "Treino não encontrado"
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({
+            erro: 'ID inválido'
         });
     }
 
-    res.status(200).json(treinoEncontrado);
+    const treino = db.prepare(
+        'SELECT * FROM treinos WHERE id = ?'
+    ).get(id);
 
+    if (!treino) {
+        return res.status(404).json({
+            erro: 'Treino não encontrado'
+        });
+    }
+
+    res.status(200).json(treino);
 });
 
 // ============================================================
@@ -99,8 +96,7 @@ servidor.get("/treinos/:id", (req, res) => {
 // Cria um novo treino
 // ============================================================
 
-servidor.post("/treinos", (req, res) => {
-
+servidor.post('/treinos', (req, res) => {
     const mensagemErro = verificarTreino(req.body);
 
     if (mensagemErro) {
@@ -109,18 +105,18 @@ servidor.post("/treinos", (req, res) => {
         });
     }
 
-    ultimoId++;
+    const resultado = db.prepare(
+        'INSERT INTO treinos (nome, duracao) VALUES (?, ?)'
+    ).run(
+        req.body.nome.trim(),
+        req.body.duracao
+    );
 
-    const novoTreino = {
-        id: ultimoId,
-        nome: req.body.nome.trim(),
-        duracao: req.body.duracao
-    };
-
-    listaTreinos.push(novoTreino);
+    const novoTreino = db.prepare(
+        'SELECT * FROM treinos WHERE id = ?'
+    ).get(Number(resultado.lastInsertRowid));
 
     res.status(201).json(novoTreino);
-
 });
 
 // ============================================================
@@ -128,17 +124,22 @@ servidor.post("/treinos", (req, res) => {
 // Altera um treino existente
 // ============================================================
 
-servidor.put("/treinos/:id", (req, res) => {
+servidor.put('/treinos/:id', (req, res) => {
+    const id = Number(req.params.id);
 
-    const idProcurado = Number(req.params.id);
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({
+            erro: 'ID inválido'
+        });
+    }
 
-    const posicao = listaTreinos.findIndex(
-        item => item.id === idProcurado
-    );
+    const treinoExistente = db.prepare(
+        'SELECT * FROM treinos WHERE id = ?'
+    ).get(id);
 
-    if (posicao === -1) {
+    if (!treinoExistente) {
         return res.status(404).json({
-            erro: "Treino não encontrado"
+            erro: 'Treino não encontrado'
         });
     }
 
@@ -150,16 +151,21 @@ servidor.put("/treinos/:id", (req, res) => {
         });
     }
 
-    const treinoAtualizado = {
-        id: idProcurado,
-        nome: req.body.nome.trim(),
-        duracao: req.body.duracao
-    };
+    db.prepare(`
+        UPDATE treinos
+        SET nome = ?, duracao = ?
+        WHERE id = ?
+    `).run(
+        req.body.nome.trim(),
+        req.body.duracao,
+        id
+    );
 
-    listaTreinos[posicao] = treinoAtualizado;
+    const treinoAtualizado = db.prepare(
+        'SELECT * FROM treinos WHERE id = ?'
+    ).get(id);
 
     res.status(200).json(treinoAtualizado);
-
 });
 
 // ============================================================
@@ -167,24 +173,26 @@ servidor.put("/treinos/:id", (req, res) => {
 // Remove um treino
 // ============================================================
 
-servidor.delete("/treinos/:id", (req, res) => {
+servidor.delete('/treinos/:id', (req, res) => {
+    const id = Number(req.params.id);
 
-    const idParaExcluir = Number(req.params.id);
-
-    const posicao = listaTreinos.findIndex(
-        item => item.id === idParaExcluir
-    );
-
-    if (posicao === -1) {
-        return res.status(404).json({
-            erro: "Treino não encontrado"
+    if (!Number.isInteger(id) || id <= 0) {
+        return res.status(400).json({
+            erro: 'ID inválido'
         });
     }
 
-    listaTreinos.splice(posicao, 1);
+    const resultado = db.prepare(
+        'DELETE FROM treinos WHERE id = ?'
+    ).run(id);
+
+    if (resultado.changes === 0) {
+        return res.status(404).json({
+            erro: 'Treino não encontrado'
+        });
+    }
 
     res.status(204).send();
-
 });
 
 // ============================================================
@@ -192,5 +200,7 @@ servidor.delete("/treinos/:id", (req, res) => {
 // ============================================================
 
 servidor.listen(PORTA, () => {
-    console.log(`API disponível em http://localhost:${PORTA}`);
+    console.log(
+        `API disponível em http://localhost:${PORTA}`
+    );
 });
