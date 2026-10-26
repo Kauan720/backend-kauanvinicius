@@ -1,3 +1,3 @@
-Feedback - Aula 02 e Aula 03
+# Feedback - Aula 02 e Aula 03
 
-Kauan, na aula 2 as cinco rotas, get, post, put, delete, estão certas, nota completa, 0,21, só entregou bem depois do prazo, dia 29/09. Na aula 3 você ainda não entregou nada, está zerada.
+Kauan, a sua aula 2 ficou certa, nota confirmada pelo código. A aula 3 ainda não foi feita, o servidor.js continua com os dados em array, sem banco. Preciso lançar a nota até sexta-feira, essa é a entrega que falta.
