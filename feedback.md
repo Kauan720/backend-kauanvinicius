@@ -1,3 +1,5 @@
-# Feedback - Aula 02 e Aula 03
+Kauan, a aula 02 ficou certa. A aula 03 e a aula 04 não têm nenhum commit seu, continua tudo igual desde a aula 02.
 
-Kauan, a sua aula 2 ficou certa, nota confirmada pelo código. A aula 3 ainda não foi feita, o servidor.js continua com os dados em array, sem banco. Preciso lançar a nota até sexta-feira, essa é a entrega que falta.
+A recuperação do primeiro momento está na lista de revisão. Estuda a lista de revisão que você recupera essas duas.
+
+Os outros 2 pontos desse primeiro momento são a arguição, na próxima aula, no laboratório.
